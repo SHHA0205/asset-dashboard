@@ -2,7 +2,7 @@ export function accessAuth(req, res, next) {
   const password = process.env.ACCESS_PASSWORD;
   if (!password) return next();
 
-  if (req.path === '/api/health') return next();
+  if (req.path === '/api/health' || req.path === '/api/ping') return next();
 
   const header = req.headers.authorization || '';
   const [scheme, encoded] = header.split(' ');

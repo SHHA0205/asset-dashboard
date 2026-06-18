@@ -8,8 +8,10 @@
     "client": "vite",
     "server": "node server/index.js",
     "build": "tsc -b && vite build",
+    "build:render": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "prestart": "node scripts/verify-build.js",
     "start": "node server/index.js",
     "launch": "npm run build && npm start"
   },

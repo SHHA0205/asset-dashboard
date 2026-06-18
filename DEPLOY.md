@@ -62,6 +62,40 @@ git push -u origin main
 - 비밀번호 입력 창이 나오면 `ACCESS_PASSWORD` 값 입력
 - **홈 화면에 추가**하면 앱처럼 사용 가능
 
+## "Application loading" 이 계속 나올 때
+
+### 1. 잠시 대기 (무료 플랜)
+- 15분 미사용 후 첫 접속 시 **30~60초** 걸릴 수 있음
+- Render 기본 화면이 "Application loading" 으로 표시됨
+
+### 2. Render 설정 확인
+Render 대시보드 → 해당 서비스 → **Settings**:
+
+| 항목 | 올바른 값 |
+|------|-----------|
+| Type | **Web Service** (Static Site 아님!) |
+| Build Command | `npm install --include=dev && npm run build` |
+| Start Command | `npm start` |
+| Health Check Path | `/api/ping` |
+
+### 3. 로그 확인
+Render → **Logs** 탭에서 오류 확인:
+- `dist/index.html not found` → 빌드 실패
+- `EADDRINUSE` → 포트 충돌 (드묾)
+- `Application failed to respond` → 헬스체크 실패
+
+### 4. 코드 수정 후 재배포
+```bat
+git add .
+git commit -m "fix render deploy"
+git push
+```
+
+### 5. 비밀번호
+`ACCESS_PASSWORD` 설정 시 접속하면 브라우저 로그인 창이 뜸.
+- 사용자명: 아무거나 (예: `user`)
+- 비밀번호: `ACCESS_PASSWORD` 에 설정한 값
+
 ## 무료 플랜 참고
 
 - 15분 미사용 시 서버가 sleep → 첫 접속 시 30~60초 대기 가능

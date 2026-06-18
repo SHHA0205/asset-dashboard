@@ -26,7 +26,19 @@ app.use(cors());
 app.use(express.json());
 app.use(accessAuth);
 
-app.get('/api/health', async (_req, res) => {
+app.get('/api/ping', (_req, res) => {
+  res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
+
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    dist: checkDist(),
+    uptime: process.uptime(),
+  });
+});
+
+app.get('/api/health/full', async (_req, res) => {
   try {
     const [quotes, rate] = await Promise.all([
       fetchQuotes(['AAPL', '005930.KS']),
