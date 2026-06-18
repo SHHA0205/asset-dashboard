@@ -251,13 +251,13 @@ body {
 /* Account Grid */
 .account-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 
-@media (min-width: 1400px) {
+@media (max-width: 720px) {
   .account-grid {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 
