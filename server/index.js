@@ -7,6 +7,7 @@ import { searchStocks } from './searchService.js';
 import { fetchQuotes, getCachedQuotes } from './priceService.js';
 import { fetchExchangeRate, getCachedExchangeRate } from './exchangeRateService.js';
 import { accessAuth } from './auth.js';
+import authRoutes from './authRoutes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distPath = path.resolve(__dirname, '..', 'dist');
@@ -60,6 +61,8 @@ app.get('/api/health/full', async (_req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
+
+app.use('/api/auth', authRoutes);
 
 app.get('/api/search', async (req, res) => {
   try {

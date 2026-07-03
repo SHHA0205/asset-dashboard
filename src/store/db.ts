@@ -80,3 +80,36 @@ export async function setMeta(key: string, value: unknown): Promise<void> {
   const db = await getDB();
   await db.put('meta', { key, value });
 }
+
+export async function replaceAllData(
+  accounts: Account[],
+  holdings: Holding[],
+  recentSearches: unknown,
+): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(['accounts', 'holdings', 'meta'], 'readwrite');
+
+  await tx.objectStore('accounts').clear();
+  await tx.objectStore('holdings').clear();
+
+  for (const account of accounts) {
+    await tx.objectStore('accounts').put(account);
+  }
+  for (const holding of holdings) {
+    await tx.objectStore('holdings').put(holding);
+  }
+  if (recentSearches) {
+    await tx.objectStore('meta').put({ key: 'recentSearches', value: recentSearches });
+  }
+
+  await tx.done;
+}
+
+export async function clearAllData(): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(['accounts', 'holdings', 'meta'], 'readwrite');
+  await tx.objectStore('accounts').clear();
+  await tx.objectStore('holdings').clear();
+  await tx.objectStore('meta').clear();
+  await tx.done;
+}

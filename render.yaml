@@ -11,3 +11,5 @@ services:
         value: production
       - key: ACCESS_PASSWORD
         sync: false
+      - key: JWT_SECRET
+        generateValue: true

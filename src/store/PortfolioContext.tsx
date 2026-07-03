@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -24,12 +25,15 @@ import {
   getMeta,
   loadAccounts,
   loadHoldings,
+  replaceAllData,
   saveAccount,
   saveHolding,
   setMeta,
 } from './db';
 import { computeAccount, computePortfolioSummary, toYahooSymbol, weightedAverageBuyPrice } from '../utils/calculations';
 import { fetchExchangeRate, fetchQuotes } from '../api/client';
+import { fetchRemotePortfolio, pushRemotePortfolio } from '../api/auth';
+import { useAuth } from './AuthContext';
 
 interface PortfolioContextValue {
   accounts: Account[];
@@ -67,6 +71,7 @@ interface PortfolioContextValue {
     fields: { quantity?: number; avg_buy_price?: number },
   ) => Promise<void>;
   addRecentSearch: (result: SearchResult) => void;
+  syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
 }
 
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
@@ -132,6 +137,9 @@ async function seedInitialData() {
 }
 
 export function PortfolioProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [priceMap, setPriceMap] = useState<Map<string, PriceSnapshot>>(new Map());
@@ -159,13 +167,58 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     if (recent) setRecentSearches(recent);
   }, []);
 
+  const pushToCloud = useCallback(
+    async (accs: Account[], holds: Holding[], recent: SearchResult[]) => {
+      if (!isAuthenticated) return;
+      setSyncStatus('syncing');
+      try {
+        await pushRemotePortfolio({
+          accounts: accs,
+          holdings: holds,
+          recentSearches: recent,
+        });
+        setSyncStatus('synced');
+      } catch (err) {
+        console.error('Cloud sync failed:', err);
+        setSyncStatus('error');
+      }
+    },
+    [isAuthenticated],
+  );
+
   useEffect(() => {
     (async () => {
-      await seedInitialData();
-      await reload();
+      try {
+        if (isAuthenticated) {
+          const remote = await fetchRemotePortfolio();
+          await replaceAllData(
+            remote.accounts || [],
+            remote.holdings || [],
+            remote.recentSearches || [],
+          );
+        } else {
+          await seedInitialData();
+        }
+        await reload();
+      } catch (err) {
+        console.error('Init failed:', err);
+        await seedInitialData();
+        await reload();
+      }
       setLoaded(true);
     })();
-  }, [reload]);
+  }, [isAuthenticated, reload]);
+
+  useEffect(() => {
+    if (!loaded || !isAuthenticated) return;
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      pushToCloud(accounts, holdings, recentSearches);
+    }, 2000);
+    return () => {
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+    };
+  }, [accounts, holdings, recentSearches, loaded, isAuthenticated, pushToCloud]);
 
   const refreshPrices = useCallback(async () => {
     setIsRefreshing(true);
@@ -395,6 +448,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     removeHolding,
     updateHolding,
     addRecentSearch,
+    syncStatus,
   };
 
   return (

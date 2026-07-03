@@ -51,7 +51,8 @@ git push -u origin main
 | Key | Value |
 |-----|-------|
 | `NODE_ENV` | `production` |
-| `ACCESS_PASSWORD` | 원하는 비밀번호 (예: `MySecret2026!`) |
+| `ACCESS_PASSWORD` | (선택) 사이트 전체 2차 비밀번호 |
+| `JWT_SECRET` | **필수** 랜덤 긴 문자열 (로그인 세션 암호화) |
 
 6. **Create Web Service** 클릭
 7. 5~10분 후 배포 완료 → URL 확인 (예: `https://asset-dashboard-xxxx.onrender.com`)
@@ -111,6 +112,22 @@ git push
 ```
 
 Render가 자동으로 다시 배포합니다.
+
+## PC / 모바일 동기화 (로그인)
+
+1. PC와 모바일 **같은 URL** 접속 (Render 배포 주소)
+2. **회원가입** → 아이디/비밀번호 설정 (최초 1회)
+3. PC에서 입력한 계좌/종목이 **자동 동기화** (2초 후 서버 저장)
+4. 모바일에서 **같은 아이디로 로그인** → 동일 데이터 표시
+
+### 보안
+- 비밀번호: bcrypt 해시 저장 (평문 저장 안 함)
+- 세션: JWT 토큰 (30일)
+- 전송: HTTPS (Render 기본 제공)
+- `JWT_SECRET` 환경변수 반드시 설정
+
+### 로컬 전용
+- "로그인 없이 사용" 선택 시 이 기기만 저장 (기존 방식)
 
 ## 로컬 vs 클라우드
 
