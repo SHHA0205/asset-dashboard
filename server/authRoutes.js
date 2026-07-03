@@ -76,8 +76,8 @@ router.get('/portfolio', requireAuth, (req, res) => {
 
 router.put('/portfolio', requireAuth, (req, res) => {
   try {
-    const { accounts, holdings, recentSearches } = req.body;
-    const saved = savePortfolio(req.user.id, { accounts, holdings, recentSearches });
+    const { accounts, holdings, otherAssets, recentSearches } = req.body;
+    const saved = savePortfolio(req.user.id, { accounts, holdings, otherAssets, recentSearches });
     res.json({ ok: true, updatedAt: saved.updatedAt });
   } catch (error) {
     res.status(400).json({ error: error.message });

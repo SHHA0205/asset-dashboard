@@ -1100,3 +1100,122 @@ body {
 .sync-synced { color: var(--positive); border-color: rgba(52, 211, 153, 0.3); }
 .sync-syncing { color: #fbbf24; }
 .sync-error { color: var(--negative); }
+
+/* Other Assets */
+.other-assets-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+
+.other-assets-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.other-assets-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.section-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.other-assets-total {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: auto;
+  text-align: right;
+}
+
+.other-total-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.other-asset-form {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.other-asset-form .form-row {
+  grid-template-columns: 2fr 1fr 1fr;
+}
+
+.other-assets-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.other-assets-table th {
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+}
+
+.other-assets-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.other-assets-table tr:last-child td {
+  border-bottom: none;
+}
+
+.other-assets-table .col-name {
+  font-weight: 600;
+}
+
+.other-assets-table .col-note {
+  color: var(--text-muted);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.other-assets-table .col-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.empty-other {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 24px;
+}
+
+@media (max-width: 768px) {
+  .other-assets-header {
+    flex-direction: column;
+  }
+
+  .other-assets-total {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .other-asset-form .form-row {
+    grid-template-columns: 1fr;
+  }
+}

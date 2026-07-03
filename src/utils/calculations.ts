@@ -2,10 +2,20 @@ import type {
   Account,
   ComputedAccount,
   ComputedHolding,
+  Currency,
   Holding,
+  OtherAsset,
   PortfolioSummary,
   PriceSnapshot,
 } from '../types';
+
+export function toKRW(amount: number, currency: Currency, usdKrwRate: number): number {
+  return currency === 'KRW' ? amount : amount * usdKrwRate;
+}
+
+export function computeOtherAssetsTotal(otherAssets: OtherAsset[], usdKrwRate: number): number {
+  return otherAssets.reduce((sum, a) => sum + toKRW(a.amount, a.currency, usdKrwRate), 0);
+}
 
 export function toYahooSymbol(ticker: string, market: string): string {
   const upper = ticker.toUpperCase();
@@ -74,6 +84,8 @@ export function computeAccount(
 
 export function computePortfolioSummary(
   computedAccounts: ComputedAccount[],
+  otherAssets: OtherAsset[] = [],
+  usdKrwRate = 0,
 ): PortfolioSummary {
   let domesticKRW = 0;
   let overseasKRW = 0;
@@ -90,8 +102,10 @@ export function computePortfolioSummary(
     }
   }
 
-  const totalAssetsKRW = domesticKRW + overseasKRW;
-  const totalProfitKRW = totalAssetsKRW - costKRW;
+  const securitiesKRW = domesticKRW + overseasKRW;
+  const otherAssetsKRW = computeOtherAssetsTotal(otherAssets, usdKrwRate);
+  const totalAssetsKRW = securitiesKRW + otherAssetsKRW;
+  const totalProfitKRW = securitiesKRW - costKRW;
   const totalReturnRate = costKRW > 0 ? (totalProfitKRW / costKRW) * 100 : 0;
 
   return {
@@ -101,6 +115,8 @@ export function computePortfolioSummary(
     totalProfitKRW,
     domesticKRW,
     overseasKRW,
+    otherAssetsKRW,
+    securitiesKRW,
   };
 }
 

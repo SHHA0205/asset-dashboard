@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { SummaryBar } from './components/SummaryBar';
 import { AccountGrid } from './components/AccountGrid';
+import { OtherAssetsSection } from './components/OtherAssetsSection';
 import { AccountDetail } from './components/AccountDetail';
 import { SettingsPanel } from './components/SettingsPanel';
 import { LoginPage } from './components/LoginPage';
@@ -44,6 +45,7 @@ function AppContent() {
 
       <SummaryBar />
       <AccountGrid />
+      <OtherAssetsSection />
       <AccountDetail />
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}

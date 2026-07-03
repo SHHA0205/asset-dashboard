@@ -62,6 +62,7 @@ export function createUser(username, passwordHash) {
   db.portfolios[user.id] = {
     accounts: [],
     holdings: [],
+    otherAssets: [],
     recentSearches: [],
     updatedAt: new Date().toISOString(),
   };
@@ -82,12 +83,15 @@ export function getUserById(userId) {
 
 export function getPortfolio(userId) {
   const db = readDb();
-  return db.portfolios[userId] || {
+  const portfolio = db.portfolios[userId] || {
     accounts: [],
     holdings: [],
+    otherAssets: [],
     recentSearches: [],
     updatedAt: null,
   };
+  if (!portfolio.otherAssets) portfolio.otherAssets = [];
+  return portfolio;
 }
 
 export function savePortfolio(userId, portfolio) {
@@ -98,6 +102,7 @@ export function savePortfolio(userId, portfolio) {
   db.portfolios[userId] = {
     accounts: portfolio.accounts || [],
     holdings: portfolio.holdings || [],
+    otherAssets: portfolio.otherAssets || [],
     recentSearches: portfolio.recentSearches || [],
     updatedAt: new Date().toISOString(),
   };

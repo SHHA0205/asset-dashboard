@@ -1,4 +1,4 @@
-import type { Account, Holding, SearchResult } from '../types';
+import type { Account, Holding, OtherAsset, SearchResult } from '../types';
 
 const TOKEN_KEY = 'asset_dashboard_token';
 const LOCAL_ONLY_KEY = 'asset_dashboard_local_only';
@@ -65,6 +65,7 @@ export async function login(username: string, password: string) {
 export async function fetchRemotePortfolio(): Promise<{
   accounts: Account[];
   holdings: Holding[];
+  otherAssets: OtherAsset[];
   recentSearches: SearchResult[];
   updatedAt: string | null;
 }> {
@@ -74,6 +75,7 @@ export async function fetchRemotePortfolio(): Promise<{
 export async function pushRemotePortfolio(data: {
   accounts: Account[];
   holdings: Holding[];
+  otherAssets: OtherAsset[];
   recentSearches: SearchResult[];
 }) {
   return authFetch('/portfolio', {

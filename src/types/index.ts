@@ -66,6 +66,15 @@ export interface ComputedAccount {
   totalValueKRW: number;
 }
 
+export interface OtherAsset {
+  other_asset_id: string;
+  name: string;
+  amount: number;
+  currency: Currency;
+  note: string;
+  display_order: number;
+}
+
 export interface PortfolioSummary {
   totalAssetsKRW: number;
   totalCostKRW: number;
@@ -73,4 +82,6 @@ export interface PortfolioSummary {
   totalProfitKRW: number;
   domesticKRW: number;
   overseasKRW: number;
+  otherAssetsKRW: number;
+  securitiesKRW: number;
 }

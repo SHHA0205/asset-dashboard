@@ -12,7 +12,9 @@ import { v4 as uuidv4 } from 'uuid';
 import type {
   Account,
   ComputedAccount,
+  Currency,
   Holding,
+  OtherAsset,
   PriceSnapshot,
   Region,
   SearchResult,
@@ -22,12 +24,15 @@ import type {
 import {
   deleteAccount as dbDeleteAccount,
   deleteHolding as dbDeleteHolding,
+  deleteOtherAsset as dbDeleteOtherAsset,
   getMeta,
   loadAccounts,
   loadHoldings,
+  loadOtherAssets,
   replaceAllData,
   saveAccount,
   saveHolding,
+  saveOtherAsset,
   setMeta,
 } from './db';
 import { computeAccount, computePortfolioSummary, toYahooSymbol, weightedAverageBuyPrice } from '../utils/calculations';
@@ -38,6 +43,7 @@ import { useAuth } from './AuthContext';
 interface PortfolioContextValue {
   accounts: Account[];
   holdings: Holding[];
+  otherAssets: OtherAsset[];
   computedAccounts: ComputedAccount[];
   priceMap: Map<string, PriceSnapshot>;
   usdKrwRate: number;
@@ -70,6 +76,12 @@ interface PortfolioContextValue {
     holdingId: string,
     fields: { quantity?: number; avg_buy_price?: number },
   ) => Promise<void>;
+  addOtherAsset: (name: string, amount: number, currency: Currency, note: string) => Promise<void>;
+  updateOtherAsset: (
+    assetId: string,
+    fields: { name?: string; amount?: number; currency?: Currency; note?: string },
+  ) => Promise<void>;
+  removeOtherAsset: (assetId: string) => Promise<void>;
   addRecentSearch: (result: SearchResult) => void;
   syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
 }
@@ -142,6 +154,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [otherAssets, setOtherAssets] = useState<OtherAsset[]>([]);
   const [priceMap, setPriceMap] = useState<Map<string, PriceSnapshot>>(new Map());
   const [usdKrwRate, setUsdKrwRate] = useState(0);
   const [lastPriceUpdate, setLastPriceUpdate] = useState<string | null>(null);
@@ -157,24 +170,32 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
 
   const reload = useCallback(async () => {
-    const [accs, holds, recent] = await Promise.all([
+    const [accs, holds, others, recent] = await Promise.all([
       loadAccounts(),
       loadHoldings(),
+      loadOtherAssets(),
       getMeta<SearchResult[]>('recentSearches'),
     ]);
     setAccounts(accs);
     setHoldings(holds);
+    setOtherAssets(others);
     if (recent) setRecentSearches(recent);
   }, []);
 
   const pushToCloud = useCallback(
-    async (accs: Account[], holds: Holding[], recent: SearchResult[]) => {
+    async (
+      accs: Account[],
+      holds: Holding[],
+      others: OtherAsset[],
+      recent: SearchResult[],
+    ) => {
       if (!isAuthenticated) return;
       setSyncStatus('syncing');
       try {
         await pushRemotePortfolio({
           accounts: accs,
           holdings: holds,
+          otherAssets: others,
           recentSearches: recent,
         });
         setSyncStatus('synced');
@@ -195,6 +216,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
             remote.accounts || [],
             remote.holdings || [],
             remote.recentSearches || [],
+            remote.otherAssets || [],
           );
         } else {
           await seedInitialData();
@@ -213,12 +235,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     if (!loaded || !isAuthenticated) return;
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(() => {
-      pushToCloud(accounts, holdings, recentSearches);
+      pushToCloud(accounts, holdings, otherAssets, recentSearches);
     }, 2000);
     return () => {
       if (syncTimer.current) clearTimeout(syncTimer.current);
     };
-  }, [accounts, holdings, recentSearches, loaded, isAuthenticated, pushToCloud]);
+  }, [accounts, holdings, otherAssets, recentSearches, loaded, isAuthenticated, pushToCloud]);
 
   const refreshPrices = useCallback(async () => {
     setIsRefreshing(true);
@@ -314,8 +336,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   }, [accounts, holdings, priceMap, usdKrwRate, viewFilter, sortKey]);
 
   const summary = useMemo(
-    () => computePortfolioSummary(accounts.map((a) => computeAccount(a, holdings, priceMap, usdKrwRate))),
-    [accounts, holdings, priceMap, usdKrwRate],
+    () =>
+      computePortfolioSummary(
+        accounts.map((a) => computeAccount(a, holdings, priceMap, usdKrwRate)),
+        otherAssets,
+        usdKrwRate,
+      ),
+    [accounts, holdings, otherAssets, priceMap, usdKrwRate],
   );
 
   const addAccount = useCallback(
@@ -411,6 +438,50 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [holdings, reload],
   );
 
+  const addOtherAsset = useCallback(
+    async (name: string, amount: number, currency: Currency, note: string) => {
+      const maxOrder = otherAssets.reduce((m, a) => Math.max(m, a.display_order), -1);
+      const asset: OtherAsset = {
+        other_asset_id: uuidv4(),
+        name,
+        amount,
+        currency,
+        note,
+        display_order: maxOrder + 1,
+      };
+      await saveOtherAsset(asset);
+      await reload();
+    },
+    [otherAssets, reload],
+  );
+
+  const updateOtherAsset = useCallback(
+    async (
+      assetId: string,
+      fields: { name?: string; amount?: number; currency?: Currency; note?: string },
+    ) => {
+      const asset = otherAssets.find((a) => a.other_asset_id === assetId);
+      if (!asset) return;
+      await saveOtherAsset({
+        ...asset,
+        name: fields.name ?? asset.name,
+        amount: fields.amount ?? asset.amount,
+        currency: fields.currency ?? asset.currency,
+        note: fields.note ?? asset.note,
+      });
+      await reload();
+    },
+    [otherAssets, reload],
+  );
+
+  const removeOtherAsset = useCallback(
+    async (assetId: string) => {
+      await dbDeleteOtherAsset(assetId);
+      await reload();
+    },
+    [reload],
+  );
+
   const addRecentSearch = useCallback((result: SearchResult) => {
     setRecentSearches((prev) => {
       const filtered = prev.filter((r) => r.symbol !== result.symbol);
@@ -423,6 +494,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const value: PortfolioContextValue = {
     accounts,
     holdings,
+    otherAssets,
     computedAccounts,
     priceMap,
     usdKrwRate,
@@ -447,6 +519,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     addHolding,
     removeHolding,
     updateHolding,
+    addOtherAsset,
+    updateOtherAsset,
+    removeOtherAsset,
     addRecentSearch,
     syncStatus,
   };

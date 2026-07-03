@@ -59,6 +59,12 @@ export function SummaryBar() {
             {formatCurrency(summary.domesticKRW, 'KRW', true)} / {formatCurrency(summary.overseasKRW, 'KRW', true)}
           </span>
         </div>
+        <div className="summary-item">
+          <span className="summary-label">증권 / 기타</span>
+          <span className="summary-value sub">
+            {formatCurrency(summary.securitiesKRW, 'KRW', true)} / {formatCurrency(summary.otherAssetsKRW, 'KRW', true)}
+          </span>
+        </div>
       </div>
 
       <div className="summary-meta">

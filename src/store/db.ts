@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Account, Holding } from '../types';
+import type { Account, Holding, OtherAsset } from '../types';
 
 interface AssetDB extends DBSchema {
   accounts: {
@@ -12,6 +12,11 @@ interface AssetDB extends DBSchema {
     value: Holding;
     indexes: { 'by-account': string };
   };
+  other_assets: {
+    key: string;
+    value: OtherAsset;
+    indexes: { 'by-order': number };
+  };
   meta: {
     key: string;
     value: { key: string; value: unknown };
@@ -22,13 +27,19 @@ let dbPromise: Promise<IDBPDatabase<AssetDB>> | null = null;
 
 export function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB<AssetDB>('asset-dashboard', 1, {
-      upgrade(db) {
-        const accounts = db.createObjectStore('accounts', { keyPath: 'account_id' });
-        accounts.createIndex('by-order', 'display_order');
-        const holdings = db.createObjectStore('holdings', { keyPath: 'holding_id' });
-        holdings.createIndex('by-account', 'account_id');
-        db.createObjectStore('meta', { keyPath: 'key' });
+    dbPromise = openDB<AssetDB>('asset-dashboard', 2, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          const accounts = db.createObjectStore('accounts', { keyPath: 'account_id' });
+          accounts.createIndex('by-order', 'display_order');
+          const holdings = db.createObjectStore('holdings', { keyPath: 'holding_id' });
+          holdings.createIndex('by-account', 'account_id');
+          db.createObjectStore('meta', { keyPath: 'key' });
+        }
+        if (oldVersion < 2 && !db.objectStoreNames.contains('other_assets')) {
+          const other = db.createObjectStore('other_assets', { keyPath: 'other_asset_id' });
+          other.createIndex('by-order', 'display_order');
+        }
       },
     });
   }
@@ -70,6 +81,22 @@ export async function deleteHolding(holdingId: string): Promise<void> {
   await db.delete('holdings', holdingId);
 }
 
+export async function loadOtherAssets(): Promise<OtherAsset[]> {
+  const db = await getDB();
+  const items = await db.getAll('other_assets');
+  return items.sort((a, b) => a.display_order - b.display_order);
+}
+
+export async function saveOtherAsset(asset: OtherAsset): Promise<void> {
+  const db = await getDB();
+  await db.put('other_assets', asset);
+}
+
+export async function deleteOtherAsset(assetId: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('other_assets', assetId);
+}
+
 export async function getMeta<T>(key: string): Promise<T | null> {
   const db = await getDB();
   const entry = await db.get('meta', key);
@@ -85,18 +112,23 @@ export async function replaceAllData(
   accounts: Account[],
   holdings: Holding[],
   recentSearches: unknown,
+  otherAssets: OtherAsset[] = [],
 ): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction(['accounts', 'holdings', 'meta'], 'readwrite');
+  const tx = db.transaction(['accounts', 'holdings', 'other_assets', 'meta'], 'readwrite');
 
   await tx.objectStore('accounts').clear();
   await tx.objectStore('holdings').clear();
+  await tx.objectStore('other_assets').clear();
 
   for (const account of accounts) {
     await tx.objectStore('accounts').put(account);
   }
   for (const holding of holdings) {
     await tx.objectStore('holdings').put(holding);
+  }
+  for (const asset of otherAssets) {
+    await tx.objectStore('other_assets').put(asset);
   }
   if (recentSearches) {
     await tx.objectStore('meta').put({ key: 'recentSearches', value: recentSearches });
@@ -107,9 +139,10 @@ export async function replaceAllData(
 
 export async function clearAllData(): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction(['accounts', 'holdings', 'meta'], 'readwrite');
+  const tx = db.transaction(['accounts', 'holdings', 'other_assets', 'meta'], 'readwrite');
   await tx.objectStore('accounts').clear();
   await tx.objectStore('holdings').clear();
+  await tx.objectStore('other_assets').clear();
   await tx.objectStore('meta').clear();
   await tx.done;
 }
