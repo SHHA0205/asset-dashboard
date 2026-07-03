@@ -182,46 +182,53 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     if (recent) setRecentSearches(recent);
   }, []);
 
-  const pushToCloud = useCallback(
-    async (
-      accs: Account[],
-      holds: Holding[],
-      others: OtherAsset[],
-      recent: SearchResult[],
-    ) => {
-      if (!isAuthenticated) return;
-      setSyncStatus('syncing');
-      try {
-        await pushRemotePortfolio({
-          accounts: accs,
-          holdings: holds,
-          otherAssets: others,
-          recentSearches: recent,
-        });
-        setSyncStatus('synced');
-      } catch (err) {
-        console.error('Cloud sync failed:', err);
-        setSyncStatus('error');
-      }
-    },
-    [isAuthenticated],
-  );
+  const pushToCloud = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setSyncStatus('syncing');
+    try {
+      const [accs, holds, others, recent] = await Promise.all([
+        loadAccounts(),
+        loadHoldings(),
+        loadOtherAssets(),
+        getMeta<SearchResult[]>('recentSearches'),
+      ]);
+      await pushRemotePortfolio({
+        accounts: accs,
+        holdings: holds,
+        otherAssets: others,
+        recentSearches: recent || [],
+      });
+      setSyncStatus('synced');
+    } catch (err) {
+      console.error('Cloud sync failed:', err);
+      setSyncStatus('error');
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     (async () => {
       try {
         if (isAuthenticated) {
-          const remote = await fetchRemotePortfolio();
+          const [localOthers, remote] = await Promise.all([
+            loadOtherAssets(),
+            fetchRemotePortfolio(),
+          ]);
+          const remoteOthers = remote.otherAssets ?? [];
+          const mergedOthers = remoteOthers.length > 0 ? remoteOthers : localOthers;
           await replaceAllData(
             remote.accounts || [],
             remote.holdings || [],
             remote.recentSearches || [],
-            remote.otherAssets || [],
+            mergedOthers,
           );
+          await reload();
+          if (remoteOthers.length === 0 && localOthers.length > 0) {
+            await pushToCloud();
+          }
         } else {
           await seedInitialData();
+          await reload();
         }
-        await reload();
       } catch (err) {
         console.error('Init failed:', err);
         await seedInitialData();
@@ -229,13 +236,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       }
       setLoaded(true);
     })();
-  }, [isAuthenticated, reload]);
+  }, [isAuthenticated, reload, pushToCloud]);
 
   useEffect(() => {
     if (!loaded || !isAuthenticated) return;
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(() => {
-      pushToCloud(accounts, holdings, otherAssets, recentSearches);
+      pushToCloud();
     }, 2000);
     return () => {
       if (syncTimer.current) clearTimeout(syncTimer.current);
@@ -451,8 +458,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       };
       await saveOtherAsset(asset);
       await reload();
+      if (isAuthenticated) await pushToCloud();
     },
-    [otherAssets, reload],
+    [otherAssets, reload, isAuthenticated, pushToCloud],
   );
 
   const updateOtherAsset = useCallback(
@@ -470,16 +478,18 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         note: fields.note ?? asset.note,
       });
       await reload();
+      if (isAuthenticated) await pushToCloud();
     },
-    [otherAssets, reload],
+    [otherAssets, reload, isAuthenticated, pushToCloud],
   );
 
   const removeOtherAsset = useCallback(
     async (assetId: string) => {
       await dbDeleteOtherAsset(assetId);
       await reload();
+      if (isAuthenticated) await pushToCloud();
     },
-    [reload],
+    [reload, isAuthenticated, pushToCloud],
   );
 
   const addRecentSearch = useCallback((result: SearchResult) => {
