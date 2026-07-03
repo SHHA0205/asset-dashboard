@@ -96,5 +96,5 @@ export async function pushRemotePortfolio(data: {
   return authFetch('/portfolio', {
     method: 'PUT',
     body: JSON.stringify(data),
-  });
+  }) as Promise<{ ok: boolean; updatedAt: string }>;
 }

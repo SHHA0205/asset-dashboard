@@ -36,6 +36,7 @@ import {
   setMeta,
 } from './db';
 import { computeAccount, computePortfolioSummary, toYahooSymbol, weightedAverageBuyPrice } from '../utils/calculations';
+import { mergePortfolios } from '../utils/syncMerge';
 import { fetchExchangeRate, fetchQuotes } from '../api/client';
 import { AuthRequestError, fetchRemotePortfolio, pushRemotePortfolio } from '../api/auth';
 import { useAuth } from './AuthContext';
@@ -183,6 +184,10 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     if (recent) setRecentSearches(recent);
   }, []);
 
+  const bumpLocalUpdatedAt = useCallback(async () => {
+    await setMeta('localUpdatedAt', new Date().toISOString());
+  }, []);
+
   const pushToCloud = useCallback(async () => {
     if (!isAuthenticated || pushInFlight.current) return;
     pushInFlight.current = true;
@@ -194,12 +199,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         loadOtherAssets(),
         getMeta<SearchResult[]>('recentSearches'),
       ]);
-      await pushRemotePortfolio({
+      const result = await pushRemotePortfolio({
         accounts: accs,
         holdings: holds,
         otherAssets: others,
         recentSearches: recent || [],
       });
+      await setMeta('localUpdatedAt', result.updatedAt || new Date().toISOString());
       setSyncStatus('synced');
     } catch (err) {
       if (err instanceof AuthRequestError && err.status === 401) {
@@ -218,20 +224,41 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         if (isAuthenticated) {
-          const [localOthers, remote] = await Promise.all([
-            loadOtherAssets(),
-            fetchRemotePortfolio(),
-          ]);
-          const remoteOthers = remote.otherAssets ?? [];
-          const mergedOthers = remoteOthers.length > 0 ? remoteOthers : localOthers;
+          const [localAccs, localHolds, localOthers, localRecent, localUpdatedAt, remote] =
+            await Promise.all([
+              loadAccounts(),
+              loadHoldings(),
+              loadOtherAssets(),
+              getMeta<SearchResult[]>('recentSearches'),
+              getMeta<string>('localUpdatedAt'),
+              fetchRemotePortfolio(),
+            ]);
+
+          const merged = mergePortfolios(
+            {
+              accounts: localAccs,
+              holdings: localHolds,
+              otherAssets: localOthers,
+              recentSearches: localRecent || [],
+              localUpdatedAt,
+            },
+            {
+              accounts: remote.accounts || [],
+              holdings: remote.holdings || [],
+              otherAssets: remote.otherAssets || [],
+              recentSearches: remote.recentSearches || [],
+              updatedAt: remote.updatedAt,
+            },
+          );
+
           await replaceAllData(
-            remote.accounts || [],
-            remote.holdings || [],
-            remote.recentSearches || [],
-            mergedOthers,
+            merged.accounts,
+            merged.holdings,
+            merged.recentSearches,
+            merged.otherAssets,
           );
           await reload();
-          if (remoteOthers.length === 0 && localOthers.length > 0) {
+          if (merged.shouldPushLocal) {
             await pushToCloud();
           }
         } else {
@@ -244,7 +271,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         } else {
           console.error('Init failed:', err);
         }
-        await seedInitialData();
+        if (!isAuthenticated) {
+          await seedInitialData();
+        }
         await reload();
       }
       setLoaded(true);
@@ -377,26 +406,29 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         display_order: maxOrder + 1,
       };
       await saveAccount(account);
+      await bumpLocalUpdatedAt();
       await reload();
     },
-    [accounts, reload],
+    [accounts, reload, bumpLocalUpdatedAt],
   );
 
   const updateAccount = useCallback(
     async (account: Account) => {
       await saveAccount(account);
+      await bumpLocalUpdatedAt();
       await reload();
     },
-    [reload],
+    [reload, bumpLocalUpdatedAt],
   );
 
   const removeAccount = useCallback(
     async (accountId: string) => {
       await dbDeleteAccount(accountId);
       if (selectedAccountId === accountId) setSelectedAccountId(null);
+      await bumpLocalUpdatedAt();
       await reload();
     },
-    [reload, selectedAccountId],
+    [reload, selectedAccountId, bumpLocalUpdatedAt],
   );
 
   const addHolding = useCallback(
@@ -431,17 +463,19 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           avg_buy_price: avgBuyPrice,
         });
       }
+      await bumpLocalUpdatedAt();
       await reload();
     },
-    [holdings, reload],
+    [holdings, reload, bumpLocalUpdatedAt],
   );
 
   const removeHolding = useCallback(
     async (holdingId: string) => {
       await dbDeleteHolding(holdingId);
+      await bumpLocalUpdatedAt();
       await reload();
     },
-    [reload],
+    [reload, bumpLocalUpdatedAt],
   );
 
   const updateHolding = useCallback(
@@ -453,9 +487,10 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         quantity: fields.quantity ?? holding.quantity,
         avg_buy_price: fields.avg_buy_price ?? holding.avg_buy_price,
       });
+      await bumpLocalUpdatedAt();
       await reload();
     },
-    [holdings, reload],
+    [holdings, reload, bumpLocalUpdatedAt],
   );
 
   const addOtherAsset = useCallback(
@@ -470,10 +505,11 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         display_order: maxOrder + 1,
       };
       await saveOtherAsset(asset);
+      await bumpLocalUpdatedAt();
       await reload();
       if (isAuthenticated) await pushToCloud();
     },
-    [otherAssets, reload, isAuthenticated, pushToCloud],
+    [otherAssets, reload, bumpLocalUpdatedAt, isAuthenticated, pushToCloud],
   );
 
   const updateOtherAsset = useCallback(
@@ -490,19 +526,21 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         currency: fields.currency ?? asset.currency,
         note: fields.note ?? asset.note,
       });
+      await bumpLocalUpdatedAt();
       await reload();
       if (isAuthenticated) await pushToCloud();
     },
-    [otherAssets, reload, isAuthenticated, pushToCloud],
+    [otherAssets, reload, bumpLocalUpdatedAt, isAuthenticated, pushToCloud],
   );
 
   const removeOtherAsset = useCallback(
     async (assetId: string) => {
       await dbDeleteOtherAsset(assetId);
+      await bumpLocalUpdatedAt();
       await reload();
       if (isAuthenticated) await pushToCloud();
     },
-    [reload, isAuthenticated, pushToCloud],
+    [reload, bumpLocalUpdatedAt, isAuthenticated, pushToCloud],
   );
 
   const addRecentSearch = useCallback((result: SearchResult) => {
