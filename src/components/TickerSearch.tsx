@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { searchStocks } from '../api/client';
 import type { SearchResult } from '../types';
 import { usePortfolio } from '../store/PortfolioContext';
+import { marketBadgeClass } from '../utils/formatters';
 
 interface TickerSearchProps {
   region?: 'KRX' | 'US' | 'all';
@@ -98,7 +99,7 @@ export function TickerSearch({ region = 'all', onSelect, placeholder }: TickerSe
                 <span className="search-ticker">{r.ticker}</span>
               </div>
               <div className="search-item-meta">
-                <span className={`badge badge-${r.region === 'KRX' ? 'krx' : 'us'}`}>{r.market}</span>
+                <span className={`badge badge-${marketBadgeClass(r.market, r.region)}`}>{r.market}</span>
                 <span className="search-exchange">{r.exchange}</span>
               </div>
             </li>

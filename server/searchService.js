@@ -22,12 +22,34 @@ function getMarketBadge(item) {
 }
 
 function getCurrency(symbol, market) {
+  if (symbol.endsWith('-KRW')) return 'KRW';
   if (symbol.endsWith('.KS') || symbol.endsWith('.KQ') || /^\d{6}$/.test(symbol)) return 'KRW';
   if (['KOSPI', 'KOSDAQ', 'KRX'].some((m) => market.includes(m))) return 'KRW';
   return 'USD';
 }
 
+function normalizeCryptoResult(item) {
+  const symbol = item.symbol || '';
+  const base = symbol.replace(/-(USD|KRW|EUR|GBP|JPY)$/i, '');
+  const currency = symbol.endsWith('-KRW') ? 'KRW' : 'USD';
+
+  return {
+    symbol,
+    ticker: base,
+    name: item.longname || item.shortname || base,
+    market: 'CRYPTO',
+    exchange: 'Crypto',
+    currency,
+    quoteType: item.quoteType,
+    region: currency === 'KRW' ? 'KRX' : 'US',
+  };
+}
+
 function normalizeResult(item) {
+  if (item.quoteType === 'CRYPTOCURRENCY') {
+    return normalizeCryptoResult(item);
+  }
+
   const symbol = item.symbol || '';
   const market = getMarketBadge(item);
   const currency = getCurrency(symbol, market);
@@ -73,7 +95,18 @@ const US_STOCKS = [
   { symbol: 'QQQ', ticker: 'QQQ', name: 'Invesco QQQ Trust', market: 'NASDAQ', exchange: 'NASDAQ', currency: 'USD', region: 'US' },
 ];
 
-const ALL_LOCAL_STOCKS = [...KOREAN_STOCKS, ...US_STOCKS];
+const CRYPTO_ASSETS = [
+  { symbol: 'BTC-USD', ticker: 'BTC', name: 'Bitcoin', market: 'CRYPTO', exchange: 'Crypto', currency: 'USD', region: 'US' },
+  { symbol: 'ETH-USD', ticker: 'ETH', name: 'Ethereum', market: 'CRYPTO', exchange: 'Crypto', currency: 'USD', region: 'US' },
+  { symbol: 'SOL-USD', ticker: 'SOL', name: 'Solana', market: 'CRYPTO', exchange: 'Crypto', currency: 'USD', region: 'US' },
+  { symbol: 'XRP-USD', ticker: 'XRP', name: 'XRP', market: 'CRYPTO', exchange: 'Crypto', currency: 'USD', region: 'US' },
+  { symbol: 'DOGE-USD', ticker: 'DOGE', name: 'Dogecoin', market: 'CRYPTO', exchange: 'Crypto', currency: 'USD', region: 'US' },
+  { symbol: 'ADA-USD', ticker: 'ADA', name: 'Cardano', market: 'CRYPTO', exchange: 'Crypto', currency: 'USD', region: 'US' },
+  { symbol: 'BNB-USD', ticker: 'BNB', name: 'BNB', market: 'CRYPTO', exchange: 'Crypto', currency: 'USD', region: 'US' },
+  { symbol: 'AVAX-USD', ticker: 'AVAX', name: 'Avalanche', market: 'CRYPTO', exchange: 'Crypto', currency: 'USD', region: 'US' },
+];
+
+const ALL_LOCAL_STOCKS = [...KOREAN_STOCKS, ...US_STOCKS, ...CRYPTO_ASSETS];
 
 function searchLocal(query) {
   const q = query.toLowerCase();
@@ -89,7 +122,12 @@ async function searchYahoo(query) {
   const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=20&newsCount=0`;
   const data = await fetchJson(url);
   return (data?.quotes || [])
-    .filter((q) => q.quoteType === 'EQUITY' || q.quoteType === 'ETF')
+    .filter((q) => {
+      if (q.quoteType === 'CRYPTOCURRENCY') {
+        return (q.symbol || '').endsWith('-USD');
+      }
+      return q.quoteType === 'EQUITY' || q.quoteType === 'ETF';
+    })
     .map(normalizeResult);
 }
 

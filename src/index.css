@@ -562,6 +562,11 @@ body {
   color: var(--us);
 }
 
+.badge-crypto {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
 .search-exchange {
   font-size: 0.65rem;
   color: var(--text-muted);

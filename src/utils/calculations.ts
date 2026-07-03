@@ -20,11 +20,13 @@ export function computeOtherAssetsTotal(otherAssets: OtherAsset[], usdKrwRate: n
 export function toYahooSymbol(ticker: string, market: string): string {
   const upper = ticker.toUpperCase();
   if (upper.endsWith('.KS') || upper.endsWith('.KQ')) return upper;
+  if (/-(USD|KRW|EUR)$/i.test(upper)) return upper;
   if (/^\d{6}$/.test(ticker)) {
     const m = market.toUpperCase();
     if (m.includes('KOSDAQ') || m === 'KQ') return `${ticker}.KQ`;
     return `${ticker}.KS`;
   }
+  if (market.toUpperCase() === 'CRYPTO') return `${upper}-USD`;
   return upper;
 }
 

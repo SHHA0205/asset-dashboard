@@ -37,3 +37,15 @@ export function returnColor(value: number): string {
   if (value < 0) return 'negative';
   return 'neutral';
 }
+
+export function marketBadgeClass(market: string, region: 'KRX' | 'US'): string {
+  if (market === 'CRYPTO') return 'crypto';
+  return region === 'KRX' ? 'krx' : 'us';
+}
+
+export function formatQuantity(value: number, isCrypto = false): string {
+  if (isCrypto) {
+    return value.toLocaleString('en-US', { maximumFractionDigits: 8 });
+  }
+  return value.toLocaleString('ko-KR');
+}

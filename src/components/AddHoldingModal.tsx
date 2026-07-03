@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Region, SearchResult } from '../types';
 import { usePortfolio } from '../store/PortfolioContext';
+import { marketBadgeClass } from '../utils/formatters';
 import { TickerSearch } from './TickerSearch';
 
 interface AddHoldingModalProps {
@@ -48,7 +49,9 @@ export function AddHoldingModal({ accountId, region, onClose }: AddHoldingModalP
             <TickerSearch
               region={region}
               onSelect={setSelected}
-              placeholder={region === 'KRX' ? '종목명 또는 6자리 코드' : '티커 심볼 검색'}
+              placeholder={
+                region === 'KRX' ? '종목명 또는 6자리 코드' : '티커 또는 코인 (BTC, ETH) 검색'
+              }
             />
           </div>
 
@@ -56,7 +59,7 @@ export function AddHoldingModal({ accountId, region, onClose }: AddHoldingModalP
             <div className="selected-stock">
               <strong>{selected.name}</strong>
               <span>{selected.ticker}</span>
-              <span className={`badge badge-${selected.region === 'KRX' ? 'krx' : 'us'}`}>
+              <span className={`badge badge-${marketBadgeClass(selected.market, selected.region)}`}>
                 {selected.market}
               </span>
             </div>
@@ -64,10 +67,10 @@ export function AddHoldingModal({ accountId, region, onClose }: AddHoldingModalP
 
           <div className="form-row">
             <div className="form-group">
-              <label>매입수량</label>
+              <label>{selected?.market === 'CRYPTO' ? '보유 수량 (코인)' : '매입수량'}</label>
               <input
                 type="number"
-                min="0.0001"
+                min="0.00000001"
                 step="any"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}

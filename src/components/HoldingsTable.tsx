@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ComputedHolding } from '../types';
 import type { Currency } from '../types';
-import { formatCurrency, formatPercent, formatPrice, returnColor } from '../utils/formatters';
+import { formatCurrency, formatPercent, formatPrice, formatQuantity, returnColor } from '../utils/formatters';
 
 interface HoldingsTableProps {
   holdings: ComputedHolding[];
@@ -116,7 +116,7 @@ export function HoldingsTable({
                     onClickStop={stopClick}
                   />
                 ) : (
-                  holding.quantity.toLocaleString()
+                  formatQuantity(holding.quantity, holding.market === 'CRYPTO')
                 )}
               </td>
               <td className={returnColor(returnRate)}>{formatPercent(returnRate)}</td>
