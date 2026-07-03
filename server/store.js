@@ -94,10 +94,26 @@ export function getPortfolio(userId) {
   return portfolio;
 }
 
+function emptyPortfolio() {
+  return {
+    accounts: [],
+    holdings: [],
+    otherAssets: [],
+    recentSearches: [],
+    updatedAt: null,
+  };
+}
+
 export function savePortfolio(userId, portfolio) {
   const db = readDb();
+  const user = getUserById(userId);
+  if (!user) {
+    const err = new Error('세션이 만료되었습니다. 다시 로그인하세요.');
+    err.code = 'SESSION_EXPIRED';
+    throw err;
+  }
   if (!db.portfolios[userId]) {
-    throw new Error('사용자를 찾을 수 없습니다.');
+    db.portfolios[userId] = emptyPortfolio();
   }
   db.portfolios[userId] = {
     accounts: portfolio.accounts || [],

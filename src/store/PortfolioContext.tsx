@@ -37,7 +37,7 @@ import {
 } from './db';
 import { computeAccount, computePortfolioSummary, toYahooSymbol, weightedAverageBuyPrice } from '../utils/calculations';
 import { fetchExchangeRate, fetchQuotes } from '../api/client';
-import { fetchRemotePortfolio, pushRemotePortfolio } from '../api/auth';
+import { AuthRequestError, fetchRemotePortfolio, pushRemotePortfolio } from '../api/auth';
 import { useAuth } from './AuthContext';
 
 interface PortfolioContextValue {
@@ -149,8 +149,9 @@ async function seedInitialData() {
 }
 
 export function PortfolioProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pushInFlight = useRef(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -183,7 +184,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const pushToCloud = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || pushInFlight.current) return;
+    pushInFlight.current = true;
     setSyncStatus('syncing');
     try {
       const [accs, holds, others, recent] = await Promise.all([
@@ -200,10 +202,17 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       });
       setSyncStatus('synced');
     } catch (err) {
-      console.error('Cloud sync failed:', err);
-      setSyncStatus('error');
+      if (err instanceof AuthRequestError && err.status === 401) {
+        logout();
+        setSyncStatus('idle');
+      } else {
+        console.error('Cloud sync failed:', err);
+        setSyncStatus('error');
+      }
+    } finally {
+      pushInFlight.current = false;
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, logout]);
 
   useEffect(() => {
     (async () => {
@@ -230,13 +239,17 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           await reload();
         }
       } catch (err) {
-        console.error('Init failed:', err);
+        if (err instanceof AuthRequestError && err.status === 401) {
+          logout();
+        } else {
+          console.error('Init failed:', err);
+        }
         await seedInitialData();
         await reload();
       }
       setLoaded(true);
     })();
-  }, [isAuthenticated, reload, pushToCloud]);
+  }, [isAuthenticated, reload, pushToCloud, logout]);
 
   useEffect(() => {
     if (!loaded || !isAuthenticated) return;

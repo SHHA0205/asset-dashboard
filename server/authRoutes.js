@@ -80,6 +80,9 @@ router.put('/portfolio', requireAuth, (req, res) => {
     const saved = savePortfolio(req.user.id, { accounts, holdings, otherAssets, recentSearches });
     res.json({ ok: true, updatedAt: saved.updatedAt });
   } catch (error) {
+    if (error.code === 'SESSION_EXPIRED') {
+      return res.status(401).json({ error: error.message });
+    }
     res.status(400).json({ error: error.message });
   }
 });

@@ -26,6 +26,16 @@ const AUTH_BASES = [
   ...(import.meta.env.DEV ? ['http://localhost:3001/api/auth'] : []),
 ];
 
+export class AuthRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'AuthRequestError';
+    this.status = status;
+  }
+}
+
 async function authFetch(path: string, options?: RequestInit) {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -39,7 +49,12 @@ async function authFetch(path: string, options?: RequestInit) {
     try {
       const res = await fetch(`${base}${path}`, { ...options, headers });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || '요청 실패');
+      if (!res.ok) {
+        throw new AuthRequestError(
+          (data as { error?: string }).error || '요청 실패',
+          res.status,
+        );
+      }
       return data;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
