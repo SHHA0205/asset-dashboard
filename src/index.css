@@ -968,13 +968,46 @@ body {
   line-height: 1.5;
 }
 
-.login-tabs {
-  display: flex;
-  gap: 4px;
+.login-mode-title {
+  font-size: 1.1rem;
+  color: var(--accent);
+  margin-top: 12px;
+  font-weight: 600;
+}
+
+.login-form .form-group input {
+  width: 100%;
   background: var(--bg);
-  padding: 4px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  font-size: 1rem;
+}
+
+.login-switch {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.btn-switch {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-switch:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.btn-switch strong {
+  color: var(--accent);
 }
 
 .login-form {

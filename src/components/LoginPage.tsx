@@ -10,6 +10,13 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const switchMode = (next: 'login' | 'register') => {
+    setMode(next);
+    setError('');
+    setPassword('');
+    setPassword2('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -39,24 +46,14 @@ export function LoginPage() {
         <div className="login-header">
           <span className="brand-icon">📊</span>
           <h1>자산 통합 대시보드</h1>
+          <h2 className="login-mode-title">
+            {mode === 'login' ? '로그인' : '회원가입'}
+          </h2>
           <p className="login-sub">
-            로그인하면 PC와 모바일에서<br />계좌 데이터가 동기화됩니다.
+            {mode === 'login'
+              ? 'PC와 모바일에서 계좌 데이터를 동기화하려면 로그인하세요.'
+              : '아이디와 비밀번호를 설정하면 다른 기기와 동기화됩니다.'}
           </p>
-        </div>
-
-        <div className="login-tabs">
-          <button
-            className={`tab ${mode === 'login' ? 'active' : ''}`}
-            onClick={() => setMode('login')}
-          >
-            로그인
-          </button>
-          <button
-            className={`tab ${mode === 'register' ? 'active' : ''}`}
-            onClick={() => setMode('register')}
-          >
-            회원가입
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -66,7 +63,7 @@ export function LoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="3~20자"
+              placeholder="3~20자 (영문, 숫자, 한글)"
               required
               autoComplete="username"
             />
@@ -82,6 +79,7 @@ export function LoginPage() {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
           </div>
+
           {mode === 'register' && (
             <div className="form-group">
               <label>비밀번호 확인</label>
@@ -89,6 +87,7 @@ export function LoginPage() {
                 type="password"
                 value={password2}
                 onChange={(e) => setPassword2(e.target.value)}
+                placeholder="비밀번호 다시 입력"
                 required
                 autoComplete="new-password"
               />
@@ -98,9 +97,21 @@ export function LoginPage() {
           {error && <div className="login-error">{error}</div>}
 
           <button type="submit" className="btn-primary btn-login" disabled={loading}>
-            {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
+            {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입 완료'}
           </button>
         </form>
+
+        <div className="login-switch">
+          {mode === 'login' ? (
+            <button type="button" className="btn-switch" onClick={() => switchMode('register')}>
+              계정이 없으신가요? <strong>회원가입</strong>
+            </button>
+          ) : (
+            <button type="button" className="btn-switch" onClick={() => switchMode('login')}>
+              이미 계정이 있으신가요? <strong>로그인</strong>
+            </button>
+          )}
+        </div>
 
         <div className="login-footer">
           <button type="button" className="btn-link" onClick={useLocalOnly}>
@@ -110,8 +121,7 @@ export function LoginPage() {
 
         <div className="login-security">
           <small>
-            비밀번호는 bcrypt로 암호화되어 서버에 저장됩니다.<br />
-            HTTPS 접속 시 전송 구간도 암호화됩니다.
+            비밀번호는 암호화되어 서버에 저장됩니다.
           </small>
         </div>
       </div>

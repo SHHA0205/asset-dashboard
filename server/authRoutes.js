@@ -38,8 +38,10 @@ router.post('/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const user = createUser(username, passwordHash);
     const token = signToken(user);
+    console.log(`User registered: ${user.username}`);
     res.json({ token, user: { id: user.id, username: user.username } });
   } catch (error) {
+    console.error('Register error:', error.message);
     res.status(400).json({ error: error.message });
   }
 });

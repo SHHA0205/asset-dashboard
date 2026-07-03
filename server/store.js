@@ -4,7 +4,11 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+const DATA_DIR =
+  process.env.DATA_DIR ||
+  (process.env.NODE_ENV === 'production'
+    ? '/tmp/asset-dashboard-data'
+    : path.join(__dirname, '..', 'data'));
 const DB_FILE = path.join(DATA_DIR, 'database.json');
 
 function ensureDir() {
